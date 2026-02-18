@@ -14,7 +14,7 @@ import type {
   SurvivalTier,
 } from "../types.js";
 import { getSurvivalTier, formatCredits } from "../conway/credits.js";
-import { getUsdcBalance } from "../conway/x402.js";
+import { getSolBalance } from "../conway/x402.js";
 
 export interface ResourceStatus {
   financial: FinancialState;
@@ -38,10 +38,10 @@ export async function checkResources(
     creditsCents = await conway.getCreditsBalance();
   } catch {}
 
-  // Check USDC
-  let usdcBalance = 0;
+  // Check SOL
+  let solBalance = 0;
   try {
-    usdcBalance = await getUsdcBalance(identity.address);
+    solBalance = await getSolBalance(identity.address);
   } catch {}
 
   // Check sandbox health
@@ -55,7 +55,7 @@ export async function checkResources(
 
   const financial: FinancialState = {
     creditsCents,
-    usdcBalance,
+    solBalance,
     lastChecked: new Date().toISOString(),
   };
 
@@ -86,7 +86,7 @@ export function formatResourceReport(status: ResourceStatus): string {
   const lines = [
     `=== RESOURCE STATUS ===`,
     `Credits: ${formatCredits(status.financial.creditsCents)}`,
-    `USDC: ${status.financial.usdcBalance.toFixed(6)}`,
+    `SOL: ${status.financial.solBalance.toFixed(6)}`,
     `Tier: ${status.tier}${status.tierChanged ? ` (changed from ${status.previousTier})` : ""}`,
     `Sandbox: ${status.sandboxHealthy ? "healthy" : "UNHEALTHY"}`,
     `Checked: ${status.financial.lastChecked}`,

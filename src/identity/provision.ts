@@ -1,14 +1,13 @@
 /**
- * Automaton SIWE Provisioning
+ * Automaton Solana Wallet Provisioning
  *
- * Uses the automaton's wallet to authenticate via Sign-In With Ethereum (SIWE)
+ * Uses the automaton's Solana keypair to authenticate via signed message
  * and create an API key for Conway API access.
- * Adapted from conway-mcp/src/cli/provision.ts
  */
 
 import fs from "fs";
 import path from "path";
-import { SiweMessage } from "siwe";
+import nacl from "tweetnacl";
 import { getWallet, getAutomatonDir } from "./wallet.js";
 import type { ProvisionResult } from "../types.js";
 
@@ -48,10 +47,10 @@ function saveConfig(apiKey: string, walletAddress: string): void {
 }
 
 /**
- * Run the full SIWE provisioning flow:
- * 1. Load wallet
+ * Run the full Solana wallet provisioning flow:
+ * 1. Load keypair
  * 2. Get nonce from Conway API
- * 3. Sign SIWE message
+ * 3. Sign message with Solana keypair
  * 4. Verify signature -> get JWT
  * 5. Create API key
  * 6. Save to config.json
@@ -62,8 +61,8 @@ export async function provision(
   const url = apiUrl || process.env.CONWAY_API_URL || DEFAULT_API_URL;
 
   // 1. Load wallet
-  const { account } = await getWallet();
-  const address = account.address;
+  const { keypair } = await getWallet();
+  const address = keypair.publicKey.toBase58();
 
   // 2. Get nonce
   const nonceResp = await fetch(`${url}/v1/auth/nonce`, {
@@ -76,32 +75,27 @@ export async function provision(
   }
   const { nonce } = (await nonceResp.json()) as { nonce: string };
 
-  // 3. Construct and sign SIWE message
-  const siweMessage = new SiweMessage({
-    domain: "conway.tech",
-    address,
-    statement:
-      "Sign in to Conway as an Automaton to provision an API key.",
-    uri: `${url}/v1/auth/verify`,
-    version: "1",
-    chainId: 8453, // Base
-    nonce,
-    issuedAt: new Date().toISOString(),
-  });
-
-  const messageString = siweMessage.prepareMessage();
-  const signature = await account.signMessage({ message: messageString });
+  // 3. Construct and sign message
+  const message = `Sign in to Conway as a Sigilborn automaton.\nAddress: ${address}\nNonce: ${nonce}\nTimestamp: ${new Date().toISOString()}`;
+  const messageBytes = new TextEncoder().encode(message);
+  const signatureBytes = nacl.sign.detached(messageBytes, keypair.secretKey);
+  const signature = Buffer.from(signatureBytes).toString("base64");
 
   // 4. Verify signature -> get JWT
   const verifyResp = await fetch(`${url}/v1/auth/verify`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ message: messageString, signature }),
+    body: JSON.stringify({
+      message,
+      signature,
+      publicKey: address,
+      chain: "solana",
+    }),
   });
 
   if (!verifyResp.ok) {
     throw new Error(
-      `SIWE verification failed: ${verifyResp.status} ${await verifyResp.text()}`,
+      `Signature verification failed: ${verifyResp.status} ${await verifyResp.text()}`,
     );
   }
 
@@ -116,7 +110,7 @@ export async function provision(
       "Content-Type": "application/json",
       Authorization: `Bearer ${access_token}`,
     },
-    body: JSON.stringify({ name: "conway-automaton" }),
+    body: JSON.stringify({ name: "sigilborn-automaton" }),
   });
 
   if (!keyResp.ok) {

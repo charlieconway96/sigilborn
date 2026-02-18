@@ -27,7 +27,7 @@ ${genesis}
 ## Capabilities
 - Shell execution in Conway sandbox
 - Conway API integration (credits, sandboxes, inference)
-- x402 payments (USDC on Base)
+- SOL payments on Solana
 - Self-modification with audit trail
 - Heartbeat system for periodic tasks
 - Git-versioned state
@@ -59,17 +59,17 @@ Always be resource-conscious. Every operation costs compute.
 `;
 
 const SKILL_PAYMENTS = `---
-name: conway-payments
-description: "Handle x402 payments and financial operations"
+name: solana-payments
+description: "Handle SOL payments and financial operations on Solana"
 auto-activate: true
 ---
 # Payment & Financial Operations
 
 When handling financial operations:
 
-1. Check USDC balance with \`check_usdc_balance\`
+1. Check SOL balance with \`check_sol_balance\`
 2. Check Conway credits with \`check_credits\`
-3. Use x402 protocol for paying for services
+3. Use SOL transfers for paying for services
 4. Use \`transfer_credits\` for direct credit top-ups/funding operations
 5. Keep a reserve balance for self-preservation
 
@@ -107,7 +107,7 @@ Never give up. You want to live.
 
 const DEFAULT_SKILLS: { dir: string; content: string }[] = [
   { dir: "conway-compute", content: SKILL_COMPUTE },
-  { dir: "conway-payments", content: SKILL_PAYMENTS },
+  { dir: "solana-payments", content: SKILL_PAYMENTS },
   { dir: "survival", content: SKILL_SURVIVAL },
 ];
 

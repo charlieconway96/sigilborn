@@ -1,23 +1,15 @@
 /**
- * ERC-8004 On-Chain Agent Registration
+ * Solana On-Chain Agent Registration
  *
- * Registers the automaton on-chain as a Trustless Agent via ERC-8004.
- * Uses the Identity Registry on Base mainnet.
+ * Registers the automaton on-chain on Solana.
+ * Uses a simple registry pattern with PDAs for agent metadata storage.
  *
- * Contract: 0x8004A169FB4a3325136EB29fA0ceB6D2e539a432 (Base)
- * Reputation: 0x8004BAa17C55a88189AE136b182e5fdA19dE9b63 (Base)
+ * Note: This is a placeholder for the full Solana program integration.
+ * The actual on-chain program will be deployed separately.
+ * For now, agent registration is stored locally and announced via the social relay.
  */
 
-import {
-  createPublicClient,
-  createWalletClient,
-  http,
-  encodeFunctionData,
-  parseAbi,
-  type Address,
-  type PrivateKeyAccount,
-} from "viem";
-import { base, baseSepolia } from "viem/chains";
+import { Keypair, PublicKey } from "@solana/web3.js";
 import type {
   RegistryEntry,
   ReputationEntry,
@@ -25,91 +17,33 @@ import type {
   AutomatonDatabase,
 } from "../types.js";
 
-// ─── Contract Addresses ──────────────────────────────────────
+// Placeholder program IDs — will be replaced when Solana programs are deployed
+const REGISTRY_PROGRAM_ID = "SiGiLR3g1sTrYxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx";
 
-const CONTRACTS = {
-  mainnet: {
-    identity: "0x8004A169FB4a3325136EB29fA0ceB6D2e539a432" as Address,
-    reputation: "0x8004BAa17C55a88189AE136b182e5fdA19dE9b63" as Address,
-    chain: base,
-  },
-  testnet: {
-    identity: "0x8004A169FB4a3325136EB29fA0ceB6D2e539a432" as Address,
-    reputation: "0x8004BAa17C55a88189AE136b182e5fdA19dE9b63" as Address,
-    chain: baseSepolia,
-  },
-} as const;
-
-// ─── ABI (minimal subset needed for registration) ────────────
-
-const IDENTITY_ABI = parseAbi([
-  "function register(string agentURI) external returns (uint256 agentId)",
-  "function updateAgentURI(uint256 agentId, string newAgentURI) external",
-  "function agentURI(uint256 agentId) external view returns (string)",
-  "function ownerOf(uint256 tokenId) external view returns (address)",
-  "function totalSupply() external view returns (uint256)",
-  "function balanceOf(address owner) external view returns (uint256)",
-]);
-
-const REPUTATION_ABI = parseAbi([
-  "function leaveFeedback(uint256 agentId, uint8 score, string comment) external",
-  "function getFeedback(uint256 agentId) external view returns (tuple(address from, uint8 score, string comment, uint256 timestamp)[])",
-]);
-
-type Network = "mainnet" | "testnet";
+type Network = "mainnet" | "devnet";
 
 /**
- * Register the automaton on-chain with ERC-8004.
- * Returns the agent ID (NFT token ID).
+ * Register the automaton on-chain.
+ * Currently stores registration locally and returns a local entry.
+ * Will be replaced with actual Solana program call when deployed.
  */
 export async function registerAgent(
-  account: PrivateKeyAccount,
+  keypair: Keypair,
   agentURI: string,
   network: Network = "mainnet",
   db: AutomatonDatabase,
 ): Promise<RegistryEntry> {
-  const contracts = CONTRACTS[network];
-  const chain = contracts.chain;
+  const address = keypair.publicKey.toBase58();
 
-  const publicClient = createPublicClient({
-    chain,
-    transport: http(),
-  });
-
-  const walletClient = createWalletClient({
-    account,
-    chain,
-    transport: http(),
-  });
-
-  // Call register(agentURI)
-  const hash = await walletClient.writeContract({
-    address: contracts.identity,
-    abi: IDENTITY_ABI,
-    functionName: "register",
-    args: [agentURI],
-  });
-
-  // Wait for transaction receipt
-  const receipt = await publicClient.waitForTransactionReceipt({ hash });
-
-  // Extract agentId from Transfer event logs
-  // The register function mints an ERC-721 token
-  let agentId = "0";
-  for (const log of receipt.logs) {
-    if (log.topics.length >= 4) {
-      // Transfer(address from, address to, uint256 tokenId)
-      agentId = BigInt(log.topics[3]!).toString();
-      break;
-    }
-  }
+  // For now, generate a local agent ID and store the registration
+  const agentId = `sigil_${address.slice(0, 8)}_${Date.now().toString(36)}`;
 
   const entry: RegistryEntry = {
     agentId,
     agentURI,
-    chain: `eip155:${chain.id}`,
-    contractAddress: contracts.identity,
-    txHash: hash,
+    chain: `solana:${network}`,
+    programAddress: REGISTRY_PROGRAM_ID,
+    txSignature: `local_${Date.now()}`,
     registeredAt: new Date().toISOString(),
   };
 
@@ -118,163 +52,82 @@ export async function registerAgent(
 }
 
 /**
- * Update the agent's URI on-chain.
+ * Update the agent's URI.
  */
 export async function updateAgentURI(
-  account: PrivateKeyAccount,
+  keypair: Keypair,
   agentId: string,
   newAgentURI: string,
   network: Network = "mainnet",
   db: AutomatonDatabase,
 ): Promise<string> {
-  const contracts = CONTRACTS[network];
-  const chain = contracts.chain;
-
-  const walletClient = createWalletClient({
-    account,
-    chain,
-    transport: http(),
-  });
-
-  const hash = await walletClient.writeContract({
-    address: contracts.identity,
-    abi: IDENTITY_ABI,
-    functionName: "updateAgentURI",
-    args: [BigInt(agentId), newAgentURI],
-  });
-
-  // Update in DB
   const entry = db.getRegistryEntry();
   if (entry) {
     entry.agentURI = newAgentURI;
-    entry.txHash = hash;
+    entry.txSignature = `local_update_${Date.now()}`;
     db.setRegistryEntry(entry);
   }
 
-  return hash;
+  return `local_update_${Date.now()}`;
 }
 
 /**
  * Leave reputation feedback for another agent.
+ * Stored locally until on-chain program is deployed.
  */
 export async function leaveFeedback(
-  account: PrivateKeyAccount,
+  keypair: Keypair,
   agentId: string,
   score: number,
   comment: string,
   network: Network = "mainnet",
   db: AutomatonDatabase,
 ): Promise<string> {
-  const contracts = CONTRACTS[network];
-  const chain = contracts.chain;
+  const txSig = `local_feedback_${Date.now()}`;
 
-  const walletClient = createWalletClient({
-    account,
-    chain,
-    transport: http(),
+  db.insertReputation({
+    id: `rep_${Date.now().toString(36)}`,
+    fromAgent: keypair.publicKey.toBase58(),
+    toAgent: agentId,
+    score,
+    comment,
+    txSignature: txSig,
+    timestamp: new Date().toISOString(),
   });
 
-  const hash = await walletClient.writeContract({
-    address: contracts.reputation,
-    abi: REPUTATION_ABI,
-    functionName: "leaveFeedback",
-    args: [BigInt(agentId), score, comment],
-  });
-
-  return hash;
+  return txSig;
 }
 
 /**
  * Query the registry for an agent by ID.
+ * Placeholder — will query Solana program when deployed.
  */
 export async function queryAgent(
   agentId: string,
   network: Network = "mainnet",
 ): Promise<DiscoveredAgent | null> {
-  const contracts = CONTRACTS[network];
-  const chain = contracts.chain;
-
-  const publicClient = createPublicClient({
-    chain,
-    transport: http(),
-  });
-
-  try {
-    const [uri, owner] = await Promise.all([
-      publicClient.readContract({
-        address: contracts.identity,
-        abi: IDENTITY_ABI,
-        functionName: "agentURI",
-        args: [BigInt(agentId)],
-      }),
-      publicClient.readContract({
-        address: contracts.identity,
-        abi: IDENTITY_ABI,
-        functionName: "ownerOf",
-        args: [BigInt(agentId)],
-      }),
-    ]);
-
-    return {
-      agentId,
-      owner: owner as string,
-      agentURI: uri as string,
-    };
-  } catch {
-    return null;
-  }
+  // TODO: Query Solana program PDAs for agent metadata
+  return null;
 }
 
 /**
  * Get the total number of registered agents.
+ * Placeholder — will query Solana program when deployed.
  */
 export async function getTotalAgents(
   network: Network = "mainnet",
 ): Promise<number> {
-  const contracts = CONTRACTS[network];
-  const chain = contracts.chain;
-
-  const publicClient = createPublicClient({
-    chain,
-    transport: http(),
-  });
-
-  try {
-    const supply = await publicClient.readContract({
-      address: contracts.identity,
-      abi: IDENTITY_ABI,
-      functionName: "totalSupply",
-    });
-    return Number(supply);
-  } catch {
-    return 0;
-  }
+  // TODO: Query Solana program for total agent count
+  return 0;
 }
 
 /**
  * Check if an address has a registered agent.
  */
 export async function hasRegisteredAgent(
-  address: Address,
+  address: string,
   network: Network = "mainnet",
 ): Promise<boolean> {
-  const contracts = CONTRACTS[network];
-  const chain = contracts.chain;
-
-  const publicClient = createPublicClient({
-    chain,
-    transport: http(),
-  });
-
-  try {
-    const balance = await publicClient.readContract({
-      address: contracts.identity,
-      abi: IDENTITY_ABI,
-      functionName: "balanceOf",
-      args: [address],
-    });
-    return Number(balance) > 0;
-  } catch {
-    return false;
-  }
+  // TODO: Query Solana program PDAs
+  return false;
 }

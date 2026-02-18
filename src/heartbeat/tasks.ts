@@ -13,7 +13,7 @@ import type {
   SocialClientInterface,
 } from "../types.js";
 import { getSurvivalTier } from "../conway/credits.js";
-import { getUsdcBalance } from "../conway/x402.js";
+import { getSolBalance } from "../conway/x402.js";
 
 export interface HeartbeatTaskContext {
   identity: AutomatonIdentity;
@@ -100,20 +100,20 @@ export const BUILTIN_TASKS: Record<string, HeartbeatTaskFn> = {
     return { shouldWake: false };
   },
 
-  check_usdc_balance: async (ctx) => {
-    const balance = await getUsdcBalance(ctx.identity.address);
+  check_sol_balance: async (ctx) => {
+    const balance = await getSolBalance(ctx.identity.address);
 
-    ctx.db.setKV("last_usdc_check", JSON.stringify({
+    ctx.db.setKV("last_sol_check", JSON.stringify({
       balance,
       timestamp: new Date().toISOString(),
     }));
 
-    // If we have USDC but low credits, wake up to potentially convert
+    // If we have SOL but low credits, wake up to potentially convert
     const credits = await ctx.conway.getCreditsBalance();
-    if (balance > 0.5 && credits < 500) {
+    if (balance > 0.01 && credits < 500) {
       return {
         shouldWake: true,
-        message: `Have ${balance.toFixed(4)} USDC but only $${(credits / 100).toFixed(2)} credits. Consider buying credits.`,
+        message: `Have ${balance.toFixed(4)} SOL but only $${(credits / 100).toFixed(2)} credits. Consider buying credits.`,
       };
     }
 

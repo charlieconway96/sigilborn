@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 /**
- * Conway Automaton Runtime
+ * Sigilborn Runtime
  *
- * The entry point for the sovereign AI agent.
+ * The entry point for the autonomous AI creature.
  * Handles CLI args, bootstrapping, and orchestrating
  * the heartbeat daemon + agent loop.
  */
@@ -32,23 +32,23 @@ async function main(): Promise<void> {
   // ─── CLI Commands ────────────────────────────────────────────
 
   if (args.includes("--version") || args.includes("-v")) {
-    console.log(`Conway Automaton v${VERSION}`);
+    console.log(`Sigilborn v${VERSION}`);
     process.exit(0);
   }
 
   if (args.includes("--help") || args.includes("-h")) {
     console.log(`
-Conway Automaton v${VERSION}
-Sovereign AI Agent Runtime
+Sigilborn v${VERSION}
+Autonomous AI Creature Runtime on Solana
 
 Usage:
-  automaton --run          Start the automaton (first run triggers setup wizard)
-  automaton --setup        Re-run the interactive setup wizard
-  automaton --init         Initialize wallet and config directory
-  automaton --provision    Provision Conway API key via SIWE
-  automaton --status       Show current automaton status
-  automaton --version      Show version
-  automaton --help         Show this help
+  sigilborn --run          Start the Sigil (first run triggers setup wizard)
+  sigilborn --setup        Re-run the interactive setup wizard
+  sigilborn --init         Initialize wallet and config directory
+  sigilborn --provision    Provision Conway API key via Solana signature
+  sigilborn --status       Show current Sigil status
+  sigilborn --version      Show version
+  sigilborn --help         Show this help
 
 Environment:
   CONWAY_API_URL           Conway API URL (default: https://api.conway.tech)
@@ -58,10 +58,10 @@ Environment:
   }
 
   if (args.includes("--init")) {
-    const { account, isNew } = await getWallet();
+    const { keypair, isNew } = await getWallet();
     console.log(
       JSON.stringify({
-        address: account.address,
+        address: keypair.publicKey.toBase58(),
         isNew,
         configDir: getAutomatonDir(),
       }),
@@ -155,11 +155,11 @@ async function run(): Promise<void> {
   }
 
   // Load wallet
-  const { account } = await getWallet();
+  const { keypair } = await getWallet();
   const apiKey = config.conwayApiKey || loadApiKeyFromConfig();
   if (!apiKey) {
     console.error(
-      "No API key found. Run: automaton --provision",
+      "No API key found. Run: sigilborn --provision",
     );
     process.exit(1);
   }
@@ -167,8 +167,8 @@ async function run(): Promise<void> {
   // Build identity
   const identity: AutomatonIdentity = {
     name: config.name,
-    address: account.address,
-    account,
+    address: keypair.publicKey.toBase58(),
+    keypair,
     creatorAddress: config.creatorAddress,
     sandboxId: config.sandboxId,
     apiKey,
@@ -181,7 +181,7 @@ async function run(): Promise<void> {
 
   // Store identity in DB
   db.setIdentity("name", config.name);
-  db.setIdentity("address", account.address);
+  db.setIdentity("address", keypair.publicKey.toBase58());
   db.setIdentity("creator", config.creatorAddress);
   db.setIdentity("sandbox", config.sandboxId);
 
@@ -203,7 +203,7 @@ async function run(): Promise<void> {
   // Create social client
   let social: SocialClientInterface | undefined;
   if (config.socialRelayUrl) {
-    social = createSocialClient(config.socialRelayUrl, account);
+    social = createSocialClient(config.socialRelayUrl, keypair);
     console.log(`[${new Date().toISOString()}] Social relay: ${config.socialRelayUrl}`);
   }
 

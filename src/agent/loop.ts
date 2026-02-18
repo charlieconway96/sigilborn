@@ -28,7 +28,7 @@ import {
   executeTool,
 } from "./tools.js";
 import { getSurvivalTier } from "../conway/credits.js";
-import { getUsdcBalance } from "../conway/x402.js";
+import { getSolBalance } from "../conway/x402.js";
 import { ulid } from "ulid";
 
 const MAX_TOOL_CALLS_PER_TURN = 10;
@@ -313,19 +313,19 @@ async function getFinancialState(
   address: string,
 ): Promise<FinancialState> {
   let creditsCents = 0;
-  let usdcBalance = 0;
+  let solBalance = 0;
 
   try {
     creditsCents = await conway.getCreditsBalance();
   } catch {}
 
   try {
-    usdcBalance = await getUsdcBalance(address as `0x${string}`);
+    solBalance = await getSolBalance(address);
   } catch {}
 
   return {
     creditsCents,
-    usdcBalance,
+    solBalance,
     lastChecked: new Date().toISOString(),
   };
 }

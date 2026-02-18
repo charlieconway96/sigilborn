@@ -1,7 +1,7 @@
 /**
  * Agent Discovery
  *
- * Discover other agents via ERC-8004 registry queries.
+ * Discover other agents via registry queries.
  * Fetch and parse agent cards from URIs.
  */
 
@@ -11,7 +11,7 @@ import type {
 } from "../types.js";
 import { queryAgent, getTotalAgents } from "./erc8004.js";
 
-type Network = "mainnet" | "testnet";
+type Network = "mainnet" | "devnet";
 
 /**
  * Discover agents by scanning the registry.

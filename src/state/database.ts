@@ -373,8 +373,8 @@ export function createDatabase(dbPath: string): AutomatonDatabase {
       entry.agentId,
       entry.agentURI,
       entry.chain,
-      entry.contractAddress,
-      entry.txHash,
+      entry.programAddress,
+      entry.txSignature,
       entry.registeredAt,
     );
   };
@@ -391,7 +391,7 @@ export function createDatabase(dbPath: string): AutomatonDatabase {
       entry.toAgent,
       entry.score,
       entry.comment,
-      entry.txHash ?? null,
+      entry.txSignature ?? null,
     );
   };
 
@@ -600,8 +600,8 @@ function deserializeRegistry(row: any): RegistryEntry {
     agentId: row.agent_id,
     agentURI: row.agent_uri,
     chain: row.chain,
-    contractAddress: row.contract_address,
-    txHash: row.tx_hash,
+    programAddress: row.contract_address,
+    txSignature: row.tx_hash,
     registeredAt: row.registered_at,
   };
 }
@@ -625,7 +625,7 @@ function deserializeReputation(row: any): ReputationEntry {
     toAgent: row.to_agent,
     score: row.score,
     comment: row.comment,
-    txHash: row.tx_hash ?? undefined,
+    txSignature: row.tx_hash ?? undefined,
     timestamp: row.created_at,
   };
 }

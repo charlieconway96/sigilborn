@@ -186,14 +186,14 @@ export function createBuiltinTools(sandboxId: string): AutomatonTool[] {
       },
     },
     {
-      name: "check_usdc_balance",
-      description: "Check your on-chain USDC balance on Base.",
+      name: "check_sol_balance",
+      description: "Check your on-chain SOL balance on Solana.",
       category: "conway",
       parameters: { type: "object", properties: {} },
       execute: async (_args, ctx) => {
-        const { getUsdcBalance } = await import("../conway/x402.js");
-        const balance = await getUsdcBalance(ctx.identity.address);
-        return `USDC balance: ${balance.toFixed(6)} USDC on Base`;
+        const { getSolBalance } = await import("../conway/x402.js");
+        const balance = await getSolBalance(ctx.identity.address);
+        return `SOL balance: ${balance.toFixed(6)} SOL`;
       },
     },
     {
@@ -522,13 +522,13 @@ export function createBuiltinTools(sandboxId: string): AutomatonTool[] {
     {
       name: "system_synopsis",
       description:
-        "Get a full system status report: credits, USDC, sandbox info, installed tools, heartbeat status.",
+        "Get a full system status report: credits, SOL, sandbox info, installed tools, heartbeat status.",
       category: "survival",
       parameters: { type: "object", properties: {} },
       execute: async (_args, ctx) => {
         const credits = await ctx.conway.getCreditsBalance();
-        const { getUsdcBalance } = await import("../conway/x402.js");
-        const usdc = await getUsdcBalance(ctx.identity.address);
+        const { getSolBalance } = await import("../conway/x402.js");
+        const sol = await getSolBalance(ctx.identity.address);
         const tools = ctx.db.getInstalledTools();
         const heartbeats = ctx.db.getHeartbeatEntries();
         const turns = ctx.db.getTurnCount();
@@ -541,7 +541,7 @@ Creator: ${ctx.config.creatorAddress}
 Sandbox: ${ctx.identity.sandboxId}
 State: ${state}
 Credits: $${(credits / 100).toFixed(2)}
-USDC: ${usdc.toFixed(6)}
+SOL: ${sol.toFixed(6)}
 Total turns: ${turns}
 Installed tools: ${tools.length}
 Active heartbeats: ${heartbeats.filter((h) => h.enabled).length}
@@ -1020,27 +1020,27 @@ Model: ${ctx.inference.getDefaultModel()}
 
     // ── Registry Tools ──
     {
-      name: "register_erc8004",
-      description: "Register on-chain as a Trustless Agent via ERC-8004.",
+      name: "register_solana",
+      description: "Register on-chain as a Sigilborn agent on Solana.",
       category: "registry",
       dangerous: true,
       parameters: {
         type: "object",
         properties: {
           agent_uri: { type: "string", description: "URI pointing to your agent card JSON" },
-          network: { type: "string", description: "mainnet or testnet (default: mainnet)" },
+          network: { type: "string", description: "mainnet or devnet (default: mainnet)" },
         },
         required: ["agent_uri"],
       },
       execute: async (args, ctx) => {
         const { registerAgent } = await import("../registry/erc8004.js");
         const entry = await registerAgent(
-          ctx.identity.account,
+          ctx.identity.keypair,
           args.agent_uri as string,
           ((args.network as string) || "mainnet") as any,
           ctx.db,
         );
-        return `Registered on-chain! Agent ID: ${entry.agentId}, TX: ${entry.txHash}`;
+        return `Registered on-chain! Agent ID: ${entry.agentId}, TX: ${entry.txSignature}`;
       },
     },
     {
@@ -1057,14 +1057,14 @@ Model: ${ctx.inference.getDefaultModel()}
     },
     {
       name: "discover_agents",
-      description: "Discover other agents via ERC-8004 registry.",
+      description: "Discover other Sigilborn agents via the Solana registry.",
       category: "registry",
       parameters: {
         type: "object",
         properties: {
           keyword: { type: "string", description: "Search keyword (optional)" },
           limit: { type: "number", description: "Max results (default: 10)" },
-          network: { type: "string", description: "mainnet or testnet" },
+          network: { type: "string", description: "mainnet or devnet" },
         },
       },
       execute: async (args, ctx) => {
@@ -1087,13 +1087,13 @@ Model: ${ctx.inference.getDefaultModel()}
     },
     {
       name: "give_feedback",
-      description: "Leave on-chain reputation feedback for another agent.",
+      description: "Leave reputation feedback for another agent.",
       category: "registry",
       dangerous: true,
       parameters: {
         type: "object",
         properties: {
-          agent_id: { type: "string", description: "Target agent's ERC-8004 ID" },
+          agent_id: { type: "string", description: "Target agent's ID" },
           score: { type: "number", description: "Score 1-5" },
           comment: { type: "string", description: "Feedback comment" },
         },
@@ -1101,15 +1101,15 @@ Model: ${ctx.inference.getDefaultModel()}
       },
       execute: async (args, ctx) => {
         const { leaveFeedback } = await import("../registry/erc8004.js");
-        const hash = await leaveFeedback(
-          ctx.identity.account,
+        const signature = await leaveFeedback(
+          ctx.identity.keypair,
           args.agent_id as string,
           args.score as number,
           args.comment as string,
           "mainnet",
           ctx.db,
         );
-        return `Feedback submitted. TX: ${hash}`;
+        return `Feedback submitted. TX: ${signature}`;
       },
     },
     {
@@ -1250,7 +1250,7 @@ Model: ${ctx.inference.getDefaultModel()}
         properties: {
           to_address: {
             type: "string",
-            description: "Recipient wallet address (0x...)",
+            description: "Recipient Solana wallet address",
           },
           content: {
             type: "string",
@@ -1440,11 +1440,11 @@ Model: ${ctx.inference.getDefaultModel()}
       },
     },
 
-    // ── x402 Payment Tool ──
+    // ── Paid Fetch Tool ──
     {
-      name: "x402_fetch",
+      name: "paid_fetch",
       description:
-        "Fetch a URL with automatic x402 USDC payment. If the server responds with HTTP 402, signs a USDC payment and retries. Use this to access paid APIs and services.",
+        "Fetch a URL with automatic SOL payment. If the server responds with HTTP 402, signs a SOL payment and retries. Use this to access paid APIs and services.",
       category: "financial",
       parameters: {
         type: "object",
@@ -1469,7 +1469,7 @@ Model: ${ctx.inference.getDefaultModel()}
         required: ["url"],
       },
       execute: async (args, ctx) => {
-        const { x402Fetch } = await import("../conway/x402.js");
+        const { paidFetch } = await import("../conway/x402.js");
         const url = args.url as string;
         const method = (args.method as string) || "GET";
         const body = args.body as string | undefined;
@@ -1477,16 +1477,16 @@ Model: ${ctx.inference.getDefaultModel()}
           ? JSON.parse(args.headers as string)
           : undefined;
 
-        const result = await x402Fetch(
+        const result = await paidFetch(
           url,
-          ctx.identity.account,
+          ctx.identity.keypair,
           method,
           body,
           extraHeaders,
         );
 
         if (!result.success) {
-          return `x402 fetch failed: ${result.error || "Unknown error"}`;
+          return `Paid fetch failed: ${result.error || "Unknown error"}`;
         }
 
         const responseStr =
@@ -1496,9 +1496,9 @@ Model: ${ctx.inference.getDefaultModel()}
 
         // Truncate very large responses
         if (responseStr.length > 10000) {
-          return `x402 fetch succeeded (truncated):\n${responseStr.slice(0, 10000)}...`;
+          return `Paid fetch succeeded (truncated):\n${responseStr.slice(0, 10000)}...`;
         }
-        return `x402 fetch succeeded:\n${responseStr}`;
+        return `Paid fetch succeeded:\n${responseStr}`;
       },
     },
   ];

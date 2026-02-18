@@ -18,13 +18,13 @@ import { SURVIVAL_THRESHOLDS } from "../types.js";
  */
 export async function checkFinancialState(
   conway: ConwayClient,
-  usdcBalance: number,
+  solBalance: number,
 ): Promise<FinancialState> {
   const creditsCents = await conway.getCreditsBalance();
 
   return {
     creditsCents,
-    usdcBalance,
+    solBalance,
     lastChecked: new Date().toISOString(),
   };
 }
@@ -59,7 +59,7 @@ export function logCreditCheck(
     id: ulid(),
     type: "credit_check",
     amountCents: state.creditsCents,
-    description: `Balance check: ${formatCredits(state.creditsCents)} credits, ${state.usdcBalance.toFixed(4)} USDC`,
+    description: `Balance check: ${formatCredits(state.creditsCents)} credits, ${state.solBalance.toFixed(4)} SOL`,
     timestamp: state.lastChecked,
   });
 }

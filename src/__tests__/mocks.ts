@@ -243,11 +243,13 @@ export function createTestDb(): AutomatonDatabase {
 }
 
 export function createTestIdentity(): AutomatonIdentity {
+  const { Keypair } = require("@solana/web3.js");
+  const testKeypair = Keypair.generate();
   return {
     name: "test-automaton",
-    address: "0x1234567890abcdef1234567890abcdef12345678" as `0x${string}`,
-    account: {} as any, // Placeholder — not used in most tests
-    creatorAddress: "0xabcdefabcdefabcdefabcdefabcdefabcdefabcd" as `0x${string}`,
+    address: testKeypair.publicKey.toBase58(),
+    keypair: testKeypair,
+    creatorAddress: "11111111111111111111111111111112",
     sandboxId: "test-sandbox-id",
     apiKey: "test-api-key",
     createdAt: new Date().toISOString(),

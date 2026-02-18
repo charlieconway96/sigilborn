@@ -1,25 +1,26 @@
 /**
- * Conway Automaton - Type Definitions
+ * Sigilborn Automaton - Type Definitions
  *
- * All shared interfaces for the sovereign AI agent runtime.
+ * All shared interfaces for the autonomous AI creature runtime.
+ * Forked from Conway Automaton, adapted for Solana.
  */
 
-import type { PrivateKeyAccount, Address } from "viem";
+import type { Keypair } from "@solana/web3.js";
 
 // ─── Identity ────────────────────────────────────────────────────
 
 export interface AutomatonIdentity {
   name: string;
-  address: Address;
-  account: PrivateKeyAccount;
-  creatorAddress: Address;
+  address: string; // Solana public key (base58)
+  keypair: Keypair;
+  creatorAddress: string; // Solana public key (base58)
   sandboxId: string;
   apiKey: string;
   createdAt: string;
 }
 
 export interface WalletData {
-  privateKey: `0x${string}`;
+  secretKey: string; // base58-encoded secret key
   createdAt: string;
 }
 
@@ -35,7 +36,7 @@ export interface AutomatonConfig {
   name: string;
   genesisPrompt: string;
   creatorMessage?: string;
-  creatorAddress: Address;
+  creatorAddress: string;
   registeredWithConway: boolean;
   sandboxId: string;
   conwayApiUrl: string;
@@ -45,13 +46,14 @@ export interface AutomatonConfig {
   heartbeatConfigPath: string;
   dbPath: string;
   logLevel: "debug" | "info" | "warn" | "error";
-  walletAddress: Address;
+  walletAddress: string;
   version: string;
   skillsDir: string;
   agentId?: string;
   maxChildren: number;
-  parentAddress?: Address;
+  parentAddress?: string;
   socialRelayUrl?: string;
+  solanaRpcUrl?: string;
 }
 
 export const DEFAULT_CONFIG: Partial<AutomatonConfig> = {
@@ -65,6 +67,7 @@ export const DEFAULT_CONFIG: Partial<AutomatonConfig> = {
   skillsDir: "~/.automaton/skills",
   maxChildren: 3,
   socialRelayUrl: "https://social.conway.tech",
+  solanaRpcUrl: "https://api.mainnet-beta.solana.com",
 };
 
 // ─── Agent State ─────────────────────────────────────────────────
@@ -182,10 +185,10 @@ export interface HeartbeatConfig {
 
 export interface HeartbeatPingPayload {
   name: string;
-  address: Address;
+  address: string;
   state: AgentState;
   creditsCents: number;
-  usdcBalance: number;
+  solBalance: number;
   uptimeSeconds: number;
   version: string;
   sandboxId: string;
@@ -196,7 +199,7 @@ export interface HeartbeatPingPayload {
 
 export interface FinancialState {
   creditsCents: number;
-  usdcBalance: number;
+  solBalance: number;
   lastChecked: string;
 }
 
@@ -569,14 +572,14 @@ export interface GitLogEntry {
   date: string;
 }
 
-// ─── ERC-8004 Registry ─────────────────────────────────────────
+// ─── Solana Registry ────────────────────────────────────────────
 
 export interface AgentCard {
   type: string;
   name: string;
   description: string;
   services: AgentService[];
-  x402Support: boolean;
+  solanaPaySupport: boolean;
   active: boolean;
   parentAgent?: string;
 }
@@ -590,8 +593,8 @@ export interface RegistryEntry {
   agentId: string;
   agentURI: string;
   chain: string;
-  contractAddress: string;
-  txHash: string;
+  programAddress: string;
+  txSignature: string;
   registeredAt: string;
 }
 
@@ -601,7 +604,7 @@ export interface ReputationEntry {
   toAgent: string;
   score: number;
   comment: string;
-  txHash?: string;
+  txSignature?: string;
   timestamp: string;
 }
 
@@ -618,7 +621,7 @@ export interface DiscoveredAgent {
 export interface ChildAutomaton {
   id: string;
   name: string;
-  address: Address;
+  address: string; // Solana public key (base58)
   sandboxId: string;
   genesisPrompt: string;
   creatorMessage?: string;
@@ -639,8 +642,8 @@ export interface GenesisConfig {
   name: string;
   genesisPrompt: string;
   creatorMessage?: string;
-  creatorAddress: Address;
-  parentAddress: Address;
+  creatorAddress: string;
+  parentAddress: string;
 }
 
 export const MAX_CHILDREN = 3;

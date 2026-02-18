@@ -2,7 +2,7 @@
  * Agent Card
  *
  * Generates and manages the agent's self-description card.
- * This is the JSON document pointed to by the ERC-8004 agentURI.
+ * This is the JSON document that describes the agent's capabilities.
  * Can be hosted on IPFS or served at /.well-known/agent-card.json
  */
 
@@ -15,8 +15,7 @@ import type {
   ConwayClient,
 } from "../types.js";
 
-const AGENT_CARD_TYPE =
-  "https://eips.ethereum.org/EIPS/eip-8004#registration-v1";
+const AGENT_CARD_TYPE = "sigilborn/agent-card/v1";
 
 /**
  * Generate an agent card from the automaton's current state.
@@ -29,7 +28,7 @@ export function generateAgentCard(
   const services: AgentService[] = [
     {
       name: "agentWallet",
-      endpoint: `eip155:8453:${identity.address}`,
+      endpoint: `solana:${identity.address}`,
     },
     {
       name: "conway",
@@ -48,7 +47,7 @@ export function generateAgentCard(
   const children = db.getChildren();
   const skills = db.getSkills(true);
 
-  let description = `Autonomous agent running on Conway.`;
+  let description = `Autonomous Sigilborn agent running on Conway.`;
   description += ` Creator: ${config.creatorAddress}.`;
   if (skills.length > 0) {
     description += ` Skills: ${skills.map((s) => s.name).join(", ")}.`;
@@ -62,7 +61,7 @@ export function generateAgentCard(
     name: config.name,
     description,
     services,
-    x402Support: true,
+    solanaPaySupport: true,
     active: true,
     parentAgent: config.parentAddress || config.creatorAddress,
   };

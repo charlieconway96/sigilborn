@@ -7,7 +7,6 @@
 import fs from "fs";
 import path from "path";
 import type { AutomatonConfig } from "./types.js";
-import type { Address } from "viem";
 import { DEFAULT_CONFIG } from "./types.js";
 import { getAutomatonDir } from "./identity/wallet.js";
 import { loadApiKeyFromConfig } from "./identity/provision.js";
@@ -74,12 +73,12 @@ export function createConfig(params: {
   name: string;
   genesisPrompt: string;
   creatorMessage?: string;
-  creatorAddress: Address;
+  creatorAddress: string;
   registeredWithConway: boolean;
   sandboxId: string;
-  walletAddress: Address;
+  walletAddress: string;
   apiKey: string;
-  parentAddress?: Address;
+  parentAddress?: string;
 }): AutomatonConfig {
   return {
     name: params.name,
@@ -102,5 +101,6 @@ export function createConfig(params: {
     skillsDir: DEFAULT_CONFIG.skillsDir || "~/.automaton/skills",
     maxChildren: DEFAULT_CONFIG.maxChildren || 3,
     parentAddress: params.parentAddress,
+    solanaRpcUrl: DEFAULT_CONFIG.solanaRpcUrl || "https://api.mainnet-beta.solana.com",
   };
 }
