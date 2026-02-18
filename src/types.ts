@@ -1,8 +1,8 @@
 /**
- * Sigilborn Automaton - Type Definitions
+ * Conway Kingdoms - Type Definitions
  *
  * All shared interfaces for the autonomous AI creature runtime.
- * Forked from Conway Automaton, adapted for Solana.
+ * DeFi Kingdoms-style passive RPG on Solana.
  */
 
 import type { Keypair } from "@solana/web3.js";
@@ -138,7 +138,10 @@ export type ToolCategory =
   | "skills"
   | "git"
   | "registry"
-  | "replication";
+  | "replication"
+  | "quest"
+  | "summoning"
+  | "tavern";
 
 export interface ToolContext {
   identity: AutomatonIdentity;
@@ -504,6 +507,25 @@ export interface AutomatonDatabase {
   getAgentState(): AgentState;
   setAgentState(state: AgentState): void;
 
+  // Game: Sigil Profiles
+  insertSigilProfile(sigil: SigilProfile): void;
+  getSigilProfile(id: string): SigilProfile | undefined;
+  getSigilsByOwner(owner: string): SigilProfile[];
+  updateSigilProfile(sigil: SigilProfile): void;
+
+  // Game: Quests
+  insertQuestResult(result: QuestResult): void;
+  getQuestHistory(sigilId: string, limit?: number): QuestResult[];
+  getQuestStats(sigilId: string): { totalQuests: number; totalReward: number; totalXp: number };
+
+  // Game: Summoning
+  insertSummonRecord(record: SummonRecord): void;
+
+  // Game: Tavern
+  insertTavernListing(listing: TavernListing): void;
+  getActiveListings(listingType?: string): TavernListing[];
+  updateListingStatus(id: string, status: string): void;
+
   close(): void;
 }
 
@@ -647,3 +669,158 @@ export interface GenesisConfig {
 }
 
 export const MAX_CHILDREN = 3;
+
+// ─── Game: Classes & Stats ─────────────────────────────────────
+
+export type SigilClass =
+  | "ember"
+  | "thorn"
+  | "veil"
+  | "tidecaller"
+  | "sparkwright"
+  | "hollow";
+
+export type Profession = "mining" | "fishing" | "foraging" | "gardening";
+
+export type Rarity = "common" | "uncommon" | "rare" | "legendary" | "mythic";
+
+export type StatName = "str" | "dex" | "agi" | "vit" | "end" | "int" | "wis" | "lck";
+
+export interface SigilStats {
+  str: number;
+  dex: number;
+  agi: number;
+  vit: number;
+  end: number;
+  int: number;
+  wis: number;
+  lck: number;
+}
+
+export type StatGrowthRates = Record<StatName, number>;
+
+export interface ClassDefinition {
+  name: string;
+  role: string;
+  description: string;
+  primaryStats: StatName[];
+  profession: Profession;
+  baseStats: SigilStats;
+  primaryGrowth: StatGrowthRates;
+  secondaryGrowth: StatGrowthRates;
+}
+
+export interface RarityDefinition {
+  name: string;
+  chance: number;
+  statBonuses: RarityBonus[];
+}
+
+export interface RarityBonus {
+  count: number;
+  amount: number;
+  random?: boolean;
+}
+
+// ─── Game: Genetics ────────────────────────────────────────────
+
+export type GeneSlot =
+  | "class"
+  | "subclass"
+  | "profession"
+  | "activeAbility"
+  | "passiveAbility"
+  | "statBoost";
+
+export interface GeneLayers<T> {
+  dominant: T;
+  recessive: T;
+  hidden: T;
+}
+
+export interface SigilGenome {
+  class: GeneLayers<SigilClass>;
+  subclass: GeneLayers<SigilClass>;
+  profession: GeneLayers<Profession>;
+  activeAbility: GeneLayers<string>;
+  passiveAbility: GeneLayers<string>;
+  statBoost: GeneLayers<StatName>;
+}
+
+// ─── Game: Sigil Profile ───────────────────────────────────────
+
+export interface SigilProfile {
+  id: string;
+  name: string;
+  class: SigilClass;
+  subclass: SigilClass;
+  rarity: Rarity;
+  generation: number;
+  level: number;
+  xp: number;
+  xpToNextLevel: number;
+  stats: SigilStats;
+  statGrowthPrimary: StatGrowthRates;
+  statGrowthSecondary: StatGrowthRates;
+  genes: SigilGenome;
+  profession: Profession;
+  professionSkillLevel: number;
+  stamina: number;
+  maxStamina: number;
+  hp: number;
+  maxHp: number;
+  mp: number;
+  maxMp: number;
+  summonsRemaining: number;
+  maxSummons: number;
+  summonCooldownEnd: string | null;
+  parentIds: [string, string] | null;
+  owner: string;
+  mintAddress?: string;
+  createdAt: string;
+}
+
+// ─── Game: Quests ──────────────────────────────────────────────
+
+export interface QuestResult {
+  questId: string;
+  sigilId: string;
+  questType: Profession;
+  reward: number;
+  xpEarned: number;
+  skillIncrease: number;
+  itemDrops: QuestItemDrop[];
+  staminaUsed: number;
+  completedAt: string;
+}
+
+export interface QuestItemDrop {
+  name: string;
+  quantity: number;
+  rarity: Rarity;
+}
+
+// ─── Game: Summoning ───────────────────────────────────────────
+
+export interface SummonRecord {
+  id: string;
+  parent1Id: string;
+  parent2Id: string;
+  offspringId: string;
+  cost: number;
+  generation: number;
+  timestamp: string;
+}
+
+// ─── Game: Tavern (Marketplace) ────────────────────────────────
+
+export interface TavernListing {
+  id: string;
+  sigilId: string;
+  sellerAddress: string;
+  askPrice: number;
+  listingType: "sale" | "stud";
+  studFee?: number;
+  listedAt: string;
+  status: "active" | "sold" | "cancelled";
+}

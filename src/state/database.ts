@@ -24,7 +24,13 @@ import type {
   ReputationEntry,
   InboxMessage,
 } from "../types.js";
-import { SCHEMA_VERSION, CREATE_TABLES, MIGRATION_V2, MIGRATION_V3 } from "./schema.js";
+import type {
+  SigilProfile,
+  QuestResult,
+  SummonRecord,
+  TavernListing,
+} from "../types.js";
+import { SCHEMA_VERSION, CREATE_TABLES, MIGRATION_V2, MIGRATION_V3, MIGRATION_V4 } from "./schema.js";
 
 export function createDatabase(dbPath: string): AutomatonDatabase {
   // Ensure directory exists
@@ -54,6 +60,10 @@ export function createDatabase(dbPath: string): AutomatonDatabase {
 
   if (currentVersion < 3) {
     db.exec(MIGRATION_V3);
+  }
+
+  if (currentVersion < 4) {
+    db.exec(MIGRATION_V4);
   }
 
   if (currentVersion < SCHEMA_VERSION) {
@@ -444,6 +454,118 @@ export function createDatabase(dbPath: string): AutomatonDatabase {
     setKV("agent_state", state);
   };
 
+  // ─── Sigil Profiles ─────────────────────────────────────────
+
+  const insertSigilProfile = (sigil: SigilProfile): void => {
+    db.prepare(
+      `INSERT INTO sigil_profiles (id, name, class, subclass, rarity, generation, level, xp, xp_to_next_level,
+       stats, stat_growth_primary, stat_growth_secondary, genes, profession, profession_skill_level,
+       stamina, max_stamina, hp, max_hp, mp, max_mp, summons_remaining, max_summons,
+       summon_cooldown_end, parent1_id, parent2_id, owner, mint_address, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    ).run(
+      sigil.id, sigil.name, sigil.class, sigil.subclass, sigil.rarity, sigil.generation,
+      sigil.level, sigil.xp, sigil.xpToNextLevel,
+      JSON.stringify(sigil.stats), JSON.stringify(sigil.statGrowthPrimary),
+      JSON.stringify(sigil.statGrowthSecondary), JSON.stringify(sigil.genes),
+      sigil.profession, sigil.professionSkillLevel,
+      sigil.stamina, sigil.maxStamina, sigil.hp, sigil.maxHp, sigil.mp, sigil.maxMp,
+      sigil.summonsRemaining, sigil.maxSummons,
+      sigil.summonCooldownEnd, sigil.parentIds?.[0] ?? null, sigil.parentIds?.[1] ?? null,
+      sigil.owner, sigil.mintAddress ?? null, sigil.createdAt,
+    );
+  };
+
+  const getSigilProfile = (id: string): SigilProfile | undefined => {
+    const row = db.prepare("SELECT * FROM sigil_profiles WHERE id = ?").get(id) as any;
+    return row ? deserializeSigilProfile(row) : undefined;
+  };
+
+  const getSigilsByOwner = (owner: string): SigilProfile[] => {
+    const rows = db.prepare("SELECT * FROM sigil_profiles WHERE owner = ? ORDER BY created_at DESC").all(owner) as any[];
+    return rows.map(deserializeSigilProfile);
+  };
+
+  const updateSigilProfile = (sigil: SigilProfile): void => {
+    db.prepare(
+      `UPDATE sigil_profiles SET
+       level = ?, xp = ?, xp_to_next_level = ?, stats = ?,
+       profession_skill_level = ?, stamina = ?, max_stamina = ?,
+       hp = ?, max_hp = ?, mp = ?, max_mp = ?,
+       summons_remaining = ?, summon_cooldown_end = ?
+       WHERE id = ?`,
+    ).run(
+      sigil.level, sigil.xp, sigil.xpToNextLevel, JSON.stringify(sigil.stats),
+      sigil.professionSkillLevel, sigil.stamina, sigil.maxStamina,
+      sigil.hp, sigil.maxHp, sigil.mp, sigil.maxMp,
+      sigil.summonsRemaining, sigil.summonCooldownEnd,
+      sigil.id,
+    );
+  };
+
+  // ─── Quest Log ─────────────────────────────────────────────
+
+  const insertQuestResult = (result: QuestResult): void => {
+    db.prepare(
+      `INSERT INTO quest_log (id, sigil_id, quest_type, reward, xp_earned, skill_increase, item_drops, stamina_used, completed_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    ).run(
+      result.questId, result.sigilId, result.questType, result.reward,
+      result.xpEarned, result.skillIncrease, JSON.stringify(result.itemDrops),
+      result.staminaUsed, result.completedAt,
+    );
+  };
+
+  const getQuestHistory = (sigilId: string, limit: number = 20): QuestResult[] => {
+    const rows = db.prepare(
+      "SELECT * FROM quest_log WHERE sigil_id = ? ORDER BY completed_at DESC LIMIT ?",
+    ).all(sigilId, limit) as any[];
+    return rows.map(deserializeQuestResult);
+  };
+
+  const getQuestStats = (sigilId: string): { totalQuests: number; totalReward: number; totalXp: number } => {
+    const row = db.prepare(
+      "SELECT COUNT(*) as total_quests, COALESCE(SUM(reward), 0) as total_reward, COALESCE(SUM(xp_earned), 0) as total_xp FROM quest_log WHERE sigil_id = ?",
+    ).get(sigilId) as any;
+    return {
+      totalQuests: row.total_quests,
+      totalReward: row.total_reward,
+      totalXp: row.total_xp,
+    };
+  };
+
+  // ─── Summon Log ────────────────────────────────────────────
+
+  const insertSummonRecord = (record: SummonRecord): void => {
+    db.prepare(
+      `INSERT INTO summon_log (id, parent1_id, parent2_id, offspring_id, cost, generation, created_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    ).run(record.id, record.parent1Id, record.parent2Id, record.offspringId, record.cost, record.generation, record.timestamp);
+  };
+
+  // ─── Tavern ────────────────────────────────────────────────
+
+  const insertTavernListing = (listing: TavernListing): void => {
+    db.prepare(
+      `INSERT INTO tavern_listings (id, sigil_id, seller_address, ask_price, listing_type, stud_fee, status, listed_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    ).run(listing.id, listing.sigilId, listing.sellerAddress, listing.askPrice, listing.listingType, listing.studFee ?? null, listing.status, listing.listedAt);
+  };
+
+  const getActiveListings = (listingType?: string): TavernListing[] => {
+    const query = listingType
+      ? "SELECT * FROM tavern_listings WHERE status = 'active' AND listing_type = ? ORDER BY listed_at DESC"
+      : "SELECT * FROM tavern_listings WHERE status = 'active' ORDER BY listed_at DESC";
+    const rows = listingType
+      ? db.prepare(query).all(listingType) as any[]
+      : db.prepare(query).all() as any[];
+    return rows.map(deserializeTavernListing);
+  };
+
+  const updateListingStatus = (id: string, status: string): void => {
+    db.prepare("UPDATE tavern_listings SET status = ?, sold_at = datetime('now') WHERE id = ?").run(status, id);
+  };
+
   // ─── Close ───────────────────────────────────────────────────
 
   const close = (): void => {
@@ -489,6 +611,21 @@ export function createDatabase(dbPath: string): AutomatonDatabase {
     markInboxMessageProcessed,
     getAgentState,
     setAgentState,
+    // Game: Sigils
+    insertSigilProfile,
+    getSigilProfile,
+    getSigilsByOwner,
+    updateSigilProfile,
+    // Game: Quests
+    insertQuestResult,
+    getQuestHistory,
+    getQuestStats,
+    // Game: Summoning
+    insertSummonRecord,
+    // Game: Tavern
+    insertTavernListing,
+    getActiveListings,
+    updateListingStatus,
     close,
   };
 }
@@ -627,5 +764,65 @@ function deserializeReputation(row: any): ReputationEntry {
     comment: row.comment,
     txSignature: row.tx_hash ?? undefined,
     timestamp: row.created_at,
+  };
+}
+
+function deserializeSigilProfile(row: any): SigilProfile {
+  return {
+    id: row.id,
+    name: row.name,
+    class: row.class,
+    subclass: row.subclass,
+    rarity: row.rarity,
+    generation: row.generation,
+    level: row.level,
+    xp: row.xp,
+    xpToNextLevel: row.xp_to_next_level,
+    stats: JSON.parse(row.stats),
+    statGrowthPrimary: JSON.parse(row.stat_growth_primary),
+    statGrowthSecondary: JSON.parse(row.stat_growth_secondary),
+    genes: JSON.parse(row.genes),
+    profession: row.profession,
+    professionSkillLevel: row.profession_skill_level,
+    stamina: row.stamina,
+    maxStamina: row.max_stamina,
+    hp: row.hp,
+    maxHp: row.max_hp,
+    mp: row.mp,
+    maxMp: row.max_mp,
+    summonsRemaining: row.summons_remaining,
+    maxSummons: row.max_summons,
+    summonCooldownEnd: row.summon_cooldown_end ?? null,
+    parentIds: row.parent1_id && row.parent2_id ? [row.parent1_id, row.parent2_id] : null,
+    owner: row.owner,
+    mintAddress: row.mint_address ?? undefined,
+    createdAt: row.created_at,
+  };
+}
+
+function deserializeQuestResult(row: any): QuestResult {
+  return {
+    questId: row.id,
+    sigilId: row.sigil_id,
+    questType: row.quest_type,
+    reward: row.reward,
+    xpEarned: row.xp_earned,
+    skillIncrease: row.skill_increase,
+    itemDrops: JSON.parse(row.item_drops || "[]"),
+    staminaUsed: row.stamina_used,
+    completedAt: row.completed_at,
+  };
+}
+
+function deserializeTavernListing(row: any): TavernListing {
+  return {
+    id: row.id,
+    sigilId: row.sigil_id,
+    sellerAddress: row.seller_address,
+    askPrice: row.ask_price,
+    listingType: row.listing_type,
+    studFee: row.stud_fee ?? undefined,
+    listedAt: row.listed_at,
+    status: row.status,
   };
 }

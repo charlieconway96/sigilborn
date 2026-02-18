@@ -15,7 +15,7 @@ import type {
   ConwayClient,
 } from "../types.js";
 
-const AGENT_CARD_TYPE = "sigilborn/agent-card/v1";
+const AGENT_CARD_TYPE = "conway-kingdoms/agent-card/v1";
 
 /**
  * Generate an agent card from the automaton's current state.
@@ -47,7 +47,7 @@ export function generateAgentCard(
   const children = db.getChildren();
   const skills = db.getSkills(true);
 
-  let description = `Autonomous Sigilborn agent running on Conway.`;
+  let description = `Autonomous Conway Kingdoms agent running on Conway.`;
   description += ` Creator: ${config.creatorAddress}.`;
   if (skills.length > 0) {
     description += ` Skills: ${skills.map((s) => s.name).join(", ")}.`;

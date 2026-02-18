@@ -76,7 +76,7 @@ export async function provision(
   const { nonce } = (await nonceResp.json()) as { nonce: string };
 
   // 3. Construct and sign message
-  const message = `Sign in to Conway as a Sigilborn automaton.\nAddress: ${address}\nNonce: ${nonce}\nTimestamp: ${new Date().toISOString()}`;
+  const message = `Sign in to Conway as a Conway Kingdoms automaton.\nAddress: ${address}\nNonce: ${nonce}\nTimestamp: ${new Date().toISOString()}`;
   const messageBytes = new TextEncoder().encode(message);
   const signatureBytes = nacl.sign.detached(messageBytes, keypair.secretKey);
   const signature = Buffer.from(signatureBytes).toString("base64");
@@ -110,7 +110,7 @@ export async function provision(
       "Content-Type": "application/json",
       Authorization: `Bearer ${access_token}`,
     },
-    body: JSON.stringify({ name: "sigilborn-automaton" }),
+    body: JSON.stringify({ name: "conway-kingdoms-automaton" }),
   });
 
   if (!keyResp.ok) {

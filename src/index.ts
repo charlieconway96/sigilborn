@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Sigilborn Runtime
+ * Conway Kingdoms Runtime
  *
  * The entry point for the autonomous AI creature.
  * Handles CLI args, bootstrapping, and orchestrating
@@ -32,23 +32,23 @@ async function main(): Promise<void> {
   // ─── CLI Commands ────────────────────────────────────────────
 
   if (args.includes("--version") || args.includes("-v")) {
-    console.log(`Sigilborn v${VERSION}`);
+    console.log(`Conway Kingdoms v${VERSION}`);
     process.exit(0);
   }
 
   if (args.includes("--help") || args.includes("-h")) {
     console.log(`
-Sigilborn v${VERSION}
+Conway Kingdoms v${VERSION}
 Autonomous AI Creature Runtime on Solana
 
 Usage:
-  sigilborn --run          Start the Sigil (first run triggers setup wizard)
-  sigilborn --setup        Re-run the interactive setup wizard
-  sigilborn --init         Initialize wallet and config directory
-  sigilborn --provision    Provision Conway API key via Solana signature
-  sigilborn --status       Show current Sigil status
-  sigilborn --version      Show version
-  sigilborn --help         Show this help
+  conway-kingdoms --run          Start the Sigil (first run triggers setup wizard)
+  conway-kingdoms --setup        Re-run the interactive setup wizard
+  conway-kingdoms --init         Initialize wallet and config directory
+  conway-kingdoms --provision    Provision Conway API key via Solana signature
+  conway-kingdoms --status       Show current Sigil status
+  conway-kingdoms --version      Show version
+  conway-kingdoms --help         Show this help
 
 Environment:
   CONWAY_API_URL           Conway API URL (default: https://api.conway.tech)
@@ -159,7 +159,7 @@ async function run(): Promise<void> {
   const apiKey = config.conwayApiKey || loadApiKeyFromConfig();
   if (!apiKey) {
     console.error(
-      "No API key found. Run: sigilborn --provision",
+      "No API key found. Run: conway-kingdoms --provision",
     );
     process.exit(1);
   }

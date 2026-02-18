@@ -5,7 +5,7 @@
  * The database IS the automaton's memory.
  */
 
-export const SCHEMA_VERSION = 3;
+export const SCHEMA_VERSION = 4;
 
 export const CREATE_TABLES = `
   -- Schema version tracking
@@ -168,6 +168,164 @@ export const CREATE_TABLES = `
 
   CREATE INDEX IF NOT EXISTS idx_inbox_unprocessed
     ON inbox_messages(received_at) WHERE processed_at IS NULL;
+
+  -- ─── Game: Sigil Profiles ──────────────────────────────────
+  CREATE TABLE IF NOT EXISTS sigil_profiles (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    class TEXT NOT NULL,
+    subclass TEXT NOT NULL,
+    rarity TEXT NOT NULL DEFAULT 'common',
+    generation INTEGER NOT NULL DEFAULT 0,
+    level INTEGER NOT NULL DEFAULT 1,
+    xp INTEGER NOT NULL DEFAULT 0,
+    xp_to_next_level INTEGER NOT NULL DEFAULT 100,
+    stats TEXT NOT NULL DEFAULT '{}',
+    stat_growth_primary TEXT NOT NULL DEFAULT '{}',
+    stat_growth_secondary TEXT NOT NULL DEFAULT '{}',
+    genes TEXT NOT NULL DEFAULT '{}',
+    profession TEXT NOT NULL,
+    profession_skill_level REAL NOT NULL DEFAULT 0.0,
+    stamina INTEGER NOT NULL DEFAULT 25,
+    max_stamina INTEGER NOT NULL DEFAULT 25,
+    hp INTEGER NOT NULL DEFAULT 100,
+    max_hp INTEGER NOT NULL DEFAULT 100,
+    mp INTEGER NOT NULL DEFAULT 50,
+    max_mp INTEGER NOT NULL DEFAULT 50,
+    summons_remaining INTEGER NOT NULL DEFAULT 10,
+    max_summons INTEGER NOT NULL DEFAULT 10,
+    summon_cooldown_end TEXT,
+    parent1_id TEXT,
+    parent2_id TEXT,
+    owner TEXT NOT NULL,
+    mint_address TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_sigil_owner ON sigil_profiles(owner);
+  CREATE INDEX IF NOT EXISTS idx_sigil_class ON sigil_profiles(class);
+
+  -- ─── Game: Quest Log ───────────────────────────────────────
+  CREATE TABLE IF NOT EXISTS quest_log (
+    id TEXT PRIMARY KEY,
+    sigil_id TEXT NOT NULL REFERENCES sigil_profiles(id),
+    quest_type TEXT NOT NULL,
+    reward REAL NOT NULL DEFAULT 0,
+    xp_earned INTEGER NOT NULL DEFAULT 0,
+    skill_increase REAL NOT NULL DEFAULT 0,
+    item_drops TEXT NOT NULL DEFAULT '[]',
+    stamina_used INTEGER NOT NULL DEFAULT 5,
+    started_at TEXT NOT NULL DEFAULT (datetime('now')),
+    completed_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_quest_sigil ON quest_log(sigil_id);
+  CREATE INDEX IF NOT EXISTS idx_quest_type ON quest_log(quest_type);
+
+  -- ─── Game: Summon Log ──────────────────────────────────────
+  CREATE TABLE IF NOT EXISTS summon_log (
+    id TEXT PRIMARY KEY,
+    parent1_id TEXT NOT NULL,
+    parent2_id TEXT NOT NULL,
+    offspring_id TEXT NOT NULL,
+    cost REAL NOT NULL DEFAULT 0,
+    generation INTEGER NOT NULL DEFAULT 1,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+
+  -- ─── Game: Tavern Listings ─────────────────────────────────
+  CREATE TABLE IF NOT EXISTS tavern_listings (
+    id TEXT PRIMARY KEY,
+    sigil_id TEXT NOT NULL REFERENCES sigil_profiles(id),
+    seller_address TEXT NOT NULL,
+    ask_price REAL NOT NULL,
+    listing_type TEXT NOT NULL DEFAULT 'sale',
+    stud_fee REAL,
+    status TEXT NOT NULL DEFAULT 'active',
+    listed_at TEXT NOT NULL DEFAULT (datetime('now')),
+    sold_at TEXT
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_tavern_status ON tavern_listings(status);
+  CREATE INDEX IF NOT EXISTS idx_tavern_type ON tavern_listings(listing_type);
+`;
+
+export const MIGRATION_V4 = `
+  CREATE TABLE IF NOT EXISTS sigil_profiles (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    class TEXT NOT NULL,
+    subclass TEXT NOT NULL,
+    rarity TEXT NOT NULL DEFAULT 'common',
+    generation INTEGER NOT NULL DEFAULT 0,
+    level INTEGER NOT NULL DEFAULT 1,
+    xp INTEGER NOT NULL DEFAULT 0,
+    xp_to_next_level INTEGER NOT NULL DEFAULT 100,
+    stats TEXT NOT NULL DEFAULT '{}',
+    stat_growth_primary TEXT NOT NULL DEFAULT '{}',
+    stat_growth_secondary TEXT NOT NULL DEFAULT '{}',
+    genes TEXT NOT NULL DEFAULT '{}',
+    profession TEXT NOT NULL,
+    profession_skill_level REAL NOT NULL DEFAULT 0.0,
+    stamina INTEGER NOT NULL DEFAULT 25,
+    max_stamina INTEGER NOT NULL DEFAULT 25,
+    hp INTEGER NOT NULL DEFAULT 100,
+    max_hp INTEGER NOT NULL DEFAULT 100,
+    mp INTEGER NOT NULL DEFAULT 50,
+    max_mp INTEGER NOT NULL DEFAULT 50,
+    summons_remaining INTEGER NOT NULL DEFAULT 10,
+    max_summons INTEGER NOT NULL DEFAULT 10,
+    summon_cooldown_end TEXT,
+    parent1_id TEXT,
+    parent2_id TEXT,
+    owner TEXT NOT NULL,
+    mint_address TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_sigil_owner ON sigil_profiles(owner);
+  CREATE INDEX IF NOT EXISTS idx_sigil_class ON sigil_profiles(class);
+
+  CREATE TABLE IF NOT EXISTS quest_log (
+    id TEXT PRIMARY KEY,
+    sigil_id TEXT NOT NULL,
+    quest_type TEXT NOT NULL,
+    reward REAL NOT NULL DEFAULT 0,
+    xp_earned INTEGER NOT NULL DEFAULT 0,
+    skill_increase REAL NOT NULL DEFAULT 0,
+    item_drops TEXT NOT NULL DEFAULT '[]',
+    stamina_used INTEGER NOT NULL DEFAULT 5,
+    started_at TEXT NOT NULL DEFAULT (datetime('now')),
+    completed_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_quest_sigil ON quest_log(sigil_id);
+  CREATE INDEX IF NOT EXISTS idx_quest_type ON quest_log(quest_type);
+
+  CREATE TABLE IF NOT EXISTS summon_log (
+    id TEXT PRIMARY KEY,
+    parent1_id TEXT NOT NULL,
+    parent2_id TEXT NOT NULL,
+    offspring_id TEXT NOT NULL,
+    cost REAL NOT NULL DEFAULT 0,
+    generation INTEGER NOT NULL DEFAULT 1,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+
+  CREATE TABLE IF NOT EXISTS tavern_listings (
+    id TEXT PRIMARY KEY,
+    sigil_id TEXT NOT NULL,
+    seller_address TEXT NOT NULL,
+    ask_price REAL NOT NULL,
+    listing_type TEXT NOT NULL DEFAULT 'sale',
+    stud_fee REAL,
+    status TEXT NOT NULL DEFAULT 'active',
+    listed_at TEXT NOT NULL DEFAULT (datetime('now')),
+    sold_at TEXT
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_tavern_status ON tavern_listings(status);
+  CREATE INDEX IF NOT EXISTS idx_tavern_type ON tavern_listings(listing_type);
 `;
 
 export const MIGRATION_V3 = `

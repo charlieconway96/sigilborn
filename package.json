@@ -1,7 +1,7 @@
 {
-  "name": "@sigilborn/automaton",
+  "name": "@conway-kingdoms/automaton",
   "version": "0.1.0",
-  "description": "Sigilborn - Autonomous AI Creature Runtime on Solana",
+  "description": "Conway Kingdoms - Autonomous AI Creature Runtime on Solana",
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -20,19 +20,19 @@
     }
   },
   "bin": {
-    "sigilborn": "dist/index.js",
+    "conway-kingdoms": "dist/index.js",
     "sigil": "dist/index.js"
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/sigilborn/automaton.git"
+    "url": "https://github.com/conway-kingdoms/automaton.git"
   },
-  "homepage": "https://sigilborn.com",
+  "homepage": "https://conwaykingdoms.com",
   "keywords": [
     "autonomous-agent",
     "sovereign-ai",
     "solana",
-    "sigilborn",
+    "conway-kingdoms",
     "ai-creatures",
     "self-replicating"
   ],

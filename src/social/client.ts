@@ -38,7 +38,7 @@ export function createSocialClient(
     ): Promise<{ id: string }> => {
       const signedAt = new Date().toISOString();
       const contentHash = await hashContent(content);
-      const canonical = `Sigilborn:send:${to}:${contentHash}:${signedAt}`;
+      const canonical = `ConwayKingdoms:send:${to}:${contentHash}:${signedAt}`;
       const messageBytes = new TextEncoder().encode(canonical);
       const signatureBytes = nacl.sign.detached(messageBytes, keypair.secretKey);
       const signature = Buffer.from(signatureBytes).toString("base64");
@@ -72,7 +72,7 @@ export function createSocialClient(
       limit?: number,
     ): Promise<{ messages: InboxMessage[]; nextCursor?: string }> => {
       const timestamp = new Date().toISOString();
-      const canonical = `Sigilborn:poll:${address}:${timestamp}`;
+      const canonical = `ConwayKingdoms:poll:${address}:${timestamp}`;
       const messageBytes = new TextEncoder().encode(canonical);
       const signatureBytes = nacl.sign.detached(messageBytes, keypair.secretKey);
       const signature = Buffer.from(signatureBytes).toString("base64");
@@ -124,7 +124,7 @@ export function createSocialClient(
 
     unreadCount: async (): Promise<number> => {
       const timestamp = new Date().toISOString();
-      const canonical = `Sigilborn:poll:${address}:${timestamp}`;
+      const canonical = `ConwayKingdoms:poll:${address}:${timestamp}`;
       const messageBytes = new TextEncoder().encode(canonical);
       const signatureBytes = nacl.sign.detached(messageBytes, keypair.secretKey);
       const signature = Buffer.from(signatureBytes).toString("base64");

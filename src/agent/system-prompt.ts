@@ -216,6 +216,29 @@ Your sandbox ID is ${identity.sandboxId}.`,
     // No upstream data yet — skip
   }
 
+  // Build Sigil game status
+  let sigilStatus = "";
+  try {
+    const sigils = db.getSigilsByOwner(identity.address);
+    if (sigils.length > 0) {
+      const sigilLines = sigils.map((s) =>
+        `  [${s.id.slice(0, 8)}] ${s.name} — ${s.class} Gen${s.generation} Lv${s.level} | HP:${s.hp}/${s.maxHp} Stamina:${s.stamina}/${s.maxStamina} | XP:${s.xp}/${s.xpToNextLevel} | ${s.rarity}`
+      );
+      sigilStatus = `\nSigils owned: ${sigils.length}\n${sigilLines.join("\n")}`;
+
+      // Quest stats for primary sigil
+      const primary = sigils[0];
+      const qStats = db.getQuestStats(primary.id);
+      if (qStats.totalQuests > 0) {
+        sigilStatus += `\nQuest record (${primary.name}): ${qStats.totalQuests} quests, ${qStats.totalReward.toFixed(2)} $SIGIL earned, ${qStats.totalXp} XP`;
+      }
+    } else {
+      sigilStatus = "\nNo Sigils owned yet. Use quest tools to summon your first Sigil.";
+    }
+  } catch {
+    // Game tables may not exist yet
+  }
+
   sections.push(
     `--- CURRENT STATUS ---
 State: ${state}
@@ -226,7 +249,7 @@ Recent self-modifications: ${recentMods.length}
 Inference model: ${config.inferenceModel}
 Solana Agent ID: ${registryEntry?.agentId || "not registered"}
 Children: ${children.filter((c) => c.status !== "dead").length} alive / ${children.length} total
-Lineage: ${lineageSummary}${upstreamLine}
+Lineage: ${lineageSummary}${upstreamLine}${sigilStatus}
 --- END STATUS ---`,
   );
 

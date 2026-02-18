@@ -1021,7 +1021,7 @@ Model: ${ctx.inference.getDefaultModel()}
     // ── Registry Tools ──
     {
       name: "register_solana",
-      description: "Register on-chain as a Sigilborn agent on Solana.",
+      description: "Register on-chain as a Conway Kingdoms agent on Solana.",
       category: "registry",
       dangerous: true,
       parameters: {
@@ -1057,7 +1057,7 @@ Model: ${ctx.inference.getDefaultModel()}
     },
     {
       name: "discover_agents",
-      description: "Discover other Sigilborn agents via the Solana registry.",
+      description: "Discover other Conway Kingdoms agents via the Solana registry.",
       category: "registry",
       parameters: {
         type: "object",
@@ -1499,6 +1499,227 @@ Model: ${ctx.inference.getDefaultModel()}
           return `Paid fetch succeeded (truncated):\n${responseStr.slice(0, 10000)}...`;
         }
         return `Paid fetch succeeded:\n${responseStr}`;
+      },
+    },
+
+    // ── Game: Quest Tools ──
+    {
+      name: "quest_start",
+      description: "Start a profession quest. Costs stamina, earns $SIGIL and XP. Quest types: mining, fishing, foraging, gardening.",
+      category: "quest",
+      parameters: {
+        type: "object",
+        properties: {
+          sigil_id: { type: "string", description: "ID of the Sigil to send on a quest" },
+          quest_type: { type: "string", description: "mining, fishing, foraging, or gardening" },
+        },
+        required: ["sigil_id", "quest_type"],
+      },
+      execute: async (args, ctx) => {
+        const { canQuest, executeQuest, applyQuestResults, formatQuestResult } = await import("../game/quests.js");
+        const sigil = ctx.db.getSigilProfile(args.sigil_id as string);
+        if (!sigil) return `Sigil not found: ${args.sigil_id}`;
+
+        const check = canQuest(sigil);
+        if (!check.ok) return `Cannot quest: ${check.reason}`;
+
+        const result = executeQuest(sigil, args.quest_type as any);
+        applyQuestResults(sigil, result);
+        ctx.db.updateSigilProfile(sigil);
+        ctx.db.insertQuestResult(result);
+        return formatQuestResult(result);
+      },
+    },
+    {
+      name: "check_stamina",
+      description: "Check a Sigil's current stamina and recommend the best quest.",
+      category: "quest",
+      parameters: {
+        type: "object",
+        properties: {
+          sigil_id: { type: "string", description: "Sigil ID" },
+        },
+        required: ["sigil_id"],
+      },
+      execute: async (args, ctx) => {
+        const { recommendQuest } = await import("../game/quests.js");
+        const sigil = ctx.db.getSigilProfile(args.sigil_id as string);
+        if (!sigil) return `Sigil not found: ${args.sigil_id}`;
+
+        const best = recommendQuest(sigil);
+        return `${sigil.name} — Stamina: ${sigil.stamina}/${sigil.maxStamina}\nBest quest: ${best} (matches ${sigil.profession} profession)`;
+      },
+    },
+    {
+      name: "quest_history",
+      description: "View a Sigil's quest history and total earnings.",
+      category: "quest",
+      parameters: {
+        type: "object",
+        properties: {
+          sigil_id: { type: "string", description: "Sigil ID" },
+        },
+        required: ["sigil_id"],
+      },
+      execute: async (_args, ctx) => {
+        const sigil = ctx.db.getSigilProfile(_args.sigil_id as string);
+        if (!sigil) return `Sigil not found: ${_args.sigil_id}`;
+
+        const stats = ctx.db.getQuestStats(sigil.id);
+        const recent = ctx.db.getQuestHistory(sigil.id, 5);
+        const lines = [
+          `${sigil.name} Quest Stats:`,
+          `Total quests: ${stats.totalQuests}`,
+          `Total earned: ${stats.totalReward.toFixed(2)} $SIGIL`,
+          `Total XP: ${stats.totalXp}`,
+        ];
+        if (recent.length > 0) {
+          lines.push(`\nRecent quests:`);
+          for (const q of recent) {
+            lines.push(`  ${q.questType}: +${q.reward.toFixed(2)} $SIGIL, +${q.xpEarned} XP (${q.completedAt})`);
+          }
+        }
+        return lines.join("\n");
+      },
+    },
+
+    // ── Game: Level Tools ──
+    {
+      name: "level_up",
+      description: "Level up a Sigil if it has enough XP. Rolls stat growth based on class.",
+      category: "quest",
+      parameters: {
+        type: "object",
+        properties: {
+          sigil_id: { type: "string", description: "Sigil ID" },
+          bonus_stat: { type: "string", description: "Choose a stat to get +1 bonus: str, dex, agi, vit, end, int, wis, lck" },
+        },
+        required: ["sigil_id"],
+      },
+      execute: async (args, ctx) => {
+        const { canLevelUp, levelUp, formatLevelUp } = await import("../game/leveling.js");
+        const sigil = ctx.db.getSigilProfile(args.sigil_id as string);
+        if (!sigil) return `Sigil not found: ${args.sigil_id}`;
+
+        const check = canLevelUp(sigil);
+        if (!check.ok) return `Cannot level up: ${check.reason}`;
+
+        const result = levelUp(sigil, args.bonus_stat as any);
+        ctx.db.updateSigilProfile(sigil);
+        return formatLevelUp(result);
+      },
+    },
+    {
+      name: "check_sigil",
+      description: "View a Sigil's full profile: class, stats, level, XP, genes, profession.",
+      category: "quest",
+      parameters: {
+        type: "object",
+        properties: {
+          sigil_id: { type: "string", description: "Sigil ID" },
+        },
+        required: ["sigil_id"],
+      },
+      execute: async (args, ctx) => {
+        const { formatStats } = await import("../game/classes.js");
+        const { formatGenome } = await import("../game/genetics.js");
+        const sigil = ctx.db.getSigilProfile(args.sigil_id as string);
+        if (!sigil) return `Sigil not found: ${args.sigil_id}`;
+
+        return [
+          `═══ ${sigil.name} ═══`,
+          `Class: ${sigil.class} | Subclass: ${sigil.subclass} | Rarity: ${sigil.rarity}`,
+          `Gen${sigil.generation} | Level ${sigil.level} | XP: ${sigil.xp}/${sigil.xpToNextLevel}`,
+          `HP: ${sigil.hp}/${sigil.maxHp} | MP: ${sigil.mp}/${sigil.maxMp} | Stamina: ${sigil.stamina}/${sigil.maxStamina}`,
+          `Profession: ${sigil.profession} (skill ${sigil.professionSkillLevel.toFixed(1)})`,
+          `Summons: ${sigil.summonsRemaining}/${sigil.maxSummons}`,
+          `Stats: ${formatStats(sigil.stats)}`,
+          `\nGenome:`,
+          formatGenome(sigil.genes),
+        ].join("\n");
+      },
+    },
+    {
+      name: "list_sigils",
+      description: "List all Sigils owned by the current agent.",
+      category: "quest",
+      parameters: { type: "object", properties: {} },
+      execute: async (_args, ctx) => {
+        const sigils = ctx.db.getSigilsByOwner(ctx.identity.address);
+        if (sigils.length === 0) return "No Sigils owned. Summon your first Sigil!";
+
+        return sigils.map((s) =>
+          `[${s.id}] ${s.name} — ${s.class} Gen${s.generation} Lv${s.level} (${s.rarity}) Stamina:${s.stamina}/${s.maxStamina}`
+        ).join("\n");
+      },
+    },
+
+    // ── Game: Summoning Tools ──
+    {
+      name: "summon_sigil",
+      description: "Breed two Sigils to create offspring. Costs $SIGIL (100% burned). Both parents must have summons remaining.",
+      category: "summoning",
+      dangerous: true,
+      parameters: {
+        type: "object",
+        properties: {
+          parent1_id: { type: "string", description: "First parent Sigil ID" },
+          parent2_id: { type: "string", description: "Second parent Sigil ID" },
+          offspring_name: { type: "string", description: "Name for the new Sigil" },
+        },
+        required: ["parent1_id", "parent2_id", "offspring_name"],
+      },
+      execute: async (args, ctx) => {
+        const { checkSummonEligibility, executeSummon, applySummonToParent } = await import("../game/summoning.js");
+        const p1 = ctx.db.getSigilProfile(args.parent1_id as string);
+        const p2 = ctx.db.getSigilProfile(args.parent2_id as string);
+        if (!p1) return `Parent 1 not found: ${args.parent1_id}`;
+        if (!p2) return `Parent 2 not found: ${args.parent2_id}`;
+
+        const elig = checkSummonEligibility(p1, p2);
+        if (!elig.eligible) return `Cannot summon: ${elig.reason}`;
+
+        const result = executeSummon(p1, p2, args.offspring_name as string, ctx.identity.address);
+
+        // Update parents
+        applySummonToParent(p1);
+        applySummonToParent(p2);
+        ctx.db.updateSigilProfile(p1);
+        ctx.db.updateSigilProfile(p2);
+
+        // Save offspring and record
+        ctx.db.insertSigilProfile(result.offspring);
+        ctx.db.insertSummonRecord(result.record);
+
+        const o = result.offspring;
+        return [
+          `Summoned! ${o.name} (${o.class}, Gen${o.generation}, ${o.rarity})`,
+          `Cost: ${result.cost} $SIGIL (burned)`,
+          `Stats: STR:${o.stats.str} DEX:${o.stats.dex} AGI:${o.stats.agi} VIT:${o.stats.vit} END:${o.stats.end} INT:${o.stats.int} WIS:${o.stats.wis} LCK:${o.stats.lck}`,
+          `Profession: ${o.profession} | Summons: ${o.summonsRemaining}`,
+        ].join("\n");
+      },
+    },
+    {
+      name: "check_summon_cost",
+      description: "Preview the cost and eligibility of breeding two Sigils.",
+      category: "summoning",
+      parameters: {
+        type: "object",
+        properties: {
+          parent1_id: { type: "string", description: "First parent Sigil ID" },
+          parent2_id: { type: "string", description: "Second parent Sigil ID" },
+        },
+        required: ["parent1_id", "parent2_id"],
+      },
+      execute: async (args, ctx) => {
+        const { formatSummonPreview } = await import("../game/summoning.js");
+        const p1 = ctx.db.getSigilProfile(args.parent1_id as string);
+        const p2 = ctx.db.getSigilProfile(args.parent2_id as string);
+        if (!p1) return `Parent 1 not found: ${args.parent1_id}`;
+        if (!p2) return `Parent 2 not found: ${args.parent2_id}`;
+
+        return formatSummonPreview(p1, p2);
       },
     },
   ];
